@@ -5,6 +5,7 @@ on:
   schedule:
     # Run this job daily
     - cron: "0 8 * * *"
+  # Allow starting this job manually
   workflow_dispatch:
 
 env:
@@ -21,35 +22,47 @@ jobs:
     strategy:
       matrix:
         include:
+          # Set the list of targets you would like to test
           - target: x86_64-unknown-linux-gnu
-          # ...
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     env:
       TARGET: ${{ matrix.target }}
     steps:
+      # Check out this repository to `$GITHUB_WORKSPACE/downstream` for any needed files
+      - uses: actions/checkout@v7
+        with:
+          path: downstream
+      # Check out libc to `$GITHUB_WORKSPACE/rust-libc`
       - uses: actions/checkout@v7
         with:
           repository: rust-lang/libc
-          persist-credentials: false
+          # A job for `libc-0.2` may also be worth adding, though this updates
+          # significantly less frequently.
+          ref: main
+          path: rust-libc
       - name: Setup Rust toolchain
         run: ./ci/install-rust.sh
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
 
-      - name: Run tests
-        run: ./ci/run.sh ${{ matrix.target }}
+      - name: Apply patches
+        run: git -C rust-libc am downstream/patches/*
 
-      # Alternatively, if there is a Dockerfile, run tests that way.
-      # - name: Run in Docker
-      #   run: ./ci/run-docker.sh ${{ matrix.target }}
+      # Run tests using our patched dockerfile
+      - name: Run in Docker
+        run: cd rust-libc && ./ci/run-docker.sh ${{ matrix.target }}
 
-      # Optional: Upload
+      # Alternatively, if Docker is not needed, tests can be run in CI
+      # - name: Run tests
+      #   run: cd rust-libc && ./ci/run.sh ${{ matrix.target }}
+
+      # Optional: Upload the result of
       # - name: Create CI artifacts
       #   id: create_artifacts
       #   if: always()
-      #   run: python3 ci/create-artifacts.py
+      #   run: cd rust-libc && python3 ci/create-artifacts.py
       # - uses: actions/upload-artifact@v7
       #   if: always() && steps.create_artifacts.outcome == 'success'
       #   with:
