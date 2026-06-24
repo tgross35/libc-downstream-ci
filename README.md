@@ -10,6 +10,8 @@ Sample template for CI that tests Rust's `libc`. This does the following:
 Please consider submitting any patches upstream once CI has been figured out,
 to make things easy for future.
 
+See <https://github.com/rust-lang/libc/issues/5209> for more details.
+
 ## Licensing
 
 This is derived from libc's CI so available under the same licenses (MIT
