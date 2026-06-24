@@ -5,8 +5,17 @@ on:
   schedule:
     # Run this job daily
     - cron: "0 8 * * *"
-  # Allow starting this job manually
+  # Allow starting this job manually for either libc branch
   workflow_dispatch:
+    inputs:
+      branch:
+        description: libc branch to use
+        required: true
+        default: main
+        type: choice
+        options:
+          - main
+          - libc-0.2
 
 env:
   CARGO_TERM_COLOR: always
@@ -39,16 +48,22 @@ jobs:
           repository: rust-lang/libc
           # A job for `libc-0.2` may also be worth adding, though this updates
           # significantly less frequently.
-          ref: main
+          ref: ${{ inputs.branch || 'main' }}
           path: rust-libc
+
+      - name: Apply patches
+        run: |
+          set -eux
+          ls
+          git config --global user.name "GHA Runner"
+          git config --global user.email "none@github.com"
+          git -C rust-libc am "$(realpath downstream/patches/*)"
+
       - name: Setup Rust toolchain
-        run: ./ci/install-rust.sh
+        run: cd rust-libc && ./ci/install-rust.sh
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-
-      - name: Apply patches
-        run: git -C rust-libc am downstream/patches/*
 
       # Run tests using our patched dockerfile
       - name: Run in Docker
