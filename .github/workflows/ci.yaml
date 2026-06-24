@@ -1,0 +1,58 @@
+name: CI
+permissions: {}
+
+on:
+  schedule:
+    # Run this job daily
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TERM_VERBOSE: true
+  LIBC_CI: 1
+  RUSTDOCFLAGS: -Dwarnings
+  RUSTFLAGS: -Dwarnings
+  RUST_BACKTRACE: full
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+          # ...
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: rust-lang/libc
+          persist-credentials: false
+      - name: Setup Rust toolchain
+        run: ./ci/install-rust.sh
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Run tests
+        run: ./ci/run.sh ${{ matrix.target }}
+
+      # Alternatively, if there is a Dockerfile, run tests that way.
+      # - name: Run in Docker
+      #   run: ./ci/run-docker.sh ${{ matrix.target }}
+
+      # Optional: Upload
+      # - name: Create CI artifacts
+      #   id: create_artifacts
+      #   if: always()
+      #   run: python3 ci/create-artifacts.py
+      # - uses: actions/upload-artifact@v7
+      #   if: always() && steps.create_artifacts.outcome == 'success'
+      #   with:
+      #     name: ${{ env.ARCHIVE_NAME }}-${{ matrix.target }}${{ matrix.artifact-tag && format('-{0}', matrix.artifact-tag) }}
+      #     path: ${{ env.ARCHIVE_PATH }}
+      #     retention-days: 5
